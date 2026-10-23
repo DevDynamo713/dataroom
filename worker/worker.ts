@@ -1,7 +1,7 @@
 export interface Env { DATAROOM_DO: DurableObjectNamespace; }
 export class DataRoomDO {
   private state: DurableObjectState;
-  private datasets: Map<string, any> = new Map();
+  private pipelines: Map<string, any> = new Map();
   private websockets: WebSocket[] = [];
   constructor(state: DurableObjectState, env: Env) { this.state = state; }
   async fetch(request: Request): Promise<Response> {
@@ -11,14 +11,15 @@ export class DataRoomDO {
       this.state.acceptWebSocket(pair[1]);
       return new Response(null, { status: 101, webSocket: pair[0] });
     }
-    if (url.pathname === '/datasets' && request.method === 'GET') {
-      return Response.json(Array.from(this.datasets.values()));
+    if (url.pathname === '/pipelines' && request.method === 'GET') {
+      return Response.json(Array.from(this.pipelines.values()));
     }
-    if (url.pathname === '/dataset' && request.method === 'POST') {
+    if (url.pathname === '/pipeline' && request.method === 'POST') {
       const data = await request.json();
-      this.datasets.set(data.id, data);
-      this.broadcast(JSON.stringify({ type: 'dataset', data }));
-      return Response.json({ success: true });
+      const pipeline = { ...data, id: crypto.randomUUID(), recordsProcessed: 0, errorCount: 0 };
+      this.pipelines.set(pipeline.id, pipeline);
+      this.broadcast(JSON.stringify({ type: 'pipeline', data: pipeline }));
+      return Response.json({ success: true, pipeline });
     }
     return new Response('Not Found', { status: 404 });
   }
